@@ -1,6 +1,5 @@
 # Prosthesis Selection Database
 
-**INFO 605 – Fall 2025 | Team 1**  
 *Silas McAllister-Spooner, Virginia Muthard, and Phillip Roman*
 
 ---
