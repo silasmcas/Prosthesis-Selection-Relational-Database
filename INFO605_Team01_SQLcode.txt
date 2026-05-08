@@ -1,0 +1,762 @@
+-- ============================================
+
+-- TABLE 1: SURGEON (No Foreign Keys)
+
+-- ============================================
+
+CREATE TABLE Surgeon (
+	surgeonId NUMBER(3) PRIMARY KEY,
+	npi CHAR(10) NOT NULL UNIQUE,
+	fName VARCHAR2(12) NOT NULL,
+	lName VARCHAR2(20) NOT NULL,
+	street VARCHAR2(48) NOT NULL,
+	city VARCHAR2(25) NOT NULL,
+	state CHAR(2) NOT NULL,
+	zip CHAR(5) NOT NULL,
+	phone CHAR(10) NOT NULL
+);
+
+
+
+-- ============================================
+
+-- TABLE 2: CLINICIAN (No Foreign Keys)
+
+-- ============================================
+
+CREATE TABLE Clinician (
+	clinicianId NUMBER(3) PRIMARY KEY,
+	fName VARCHAR2(12) NOT NULL,
+	lName VARCHAR2(20) NOT NULL,
+	street VARCHAR2(48) NOT NULL,
+	city VARCHAR2(25) NOT NULL,
+	state CHAR(2) NOT NULL,
+	zip CHAR(5) NOT NULL,
+	phone CHAR(10) NOT NULL
+);
+
+
+
+-- ============================================
+
+-- TABLE 3: FOOT (No Foreign Keys)
+
+-- ============================================
+
+CREATE TABLE Foot (
+	footId NUMBER(3) PRIMARY KEY,
+	footMfgr VARCHAR2(16) NOT NULL,
+	footMake VARCHAR2(48) NOT NULL
+);
+
+
+
+-- ============================================
+
+-- TABLE 4: KNEE (No Foreign Keys)
+
+-- ============================================
+
+CREATE TABLE Knee (
+	kneeId NUMBER(3) PRIMARY KEY,
+	kneeMfgr VARCHAR2(16) NOT NULL,
+	kneeMake VARCHAR2(48) NOT NULL
+);
+
+
+
+-- ============================================
+
+-- TABLE 5: HIP (No Foreign Keys)
+
+-- ============================================
+
+CREATE TABLE Hip (
+	hipId NUMBER(2) PRIMARY KEY,
+	hipMfgr VARCHAR2(16) NOT NULL,
+	hipMake VARCHAR2(48) NOT NULL
+);
+
+
+-- ============================================
+
+-- TABLE 6: PATIENT (Foreign Keys: surgeonId, clinicianId)
+
+-- ============================================
+
+CREATE TABLE Patient (
+	patientId NUMBER(8) PRIMARY KEY,
+	dob DATE NOT NULL,
+	gender CHAR(1) NOT NULL,
+	street VARCHAR2(48) NOT NULL,
+	city VARCHAR2(25) NOT NULL,
+	state CHAR(2) NOT NULL,
+	zip CHAR(5) NOT NULL,
+	phone CHAR(10) NOT NULL,
+	surgeonId NUMBER(3) NOT NULL,
+	clinicianId NUMBER(3) NOT NULL,
+	ampLevel CHAR(2) NOT NULL,
+	ampDate DATE NOT NULL,
+	ampSide CHAR(1) NOT NULL,
+
+
+CONSTRAINT chk_patient_gender CHECK (gender IN ('M', 'F')),
+CONSTRAINT chk_patient_ampLevel CHECK (ampLevel IN ('TT', 'TF', 'HD')),
+CONSTRAINT chk_patient_ampSide CHECK (ampSide IN ('L', 'R')),
+CONSTRAINT chk_patient_dob CHECK (dob > DATE '1935-01-01'),
+CONSTRAINT chk_patient_ampDate CHECK (ampDate > dob + INTERVAL '18' YEAR),
+CONSTRAINT fk_patient_surgeon FOREIGN KEY (surgeonId) REFERENCES Surgeon(surgeonId),
+CONSTRAINT fk_patient_clinician FOREIGN KEY (clinicianId) REFERENCES Clinician(clinicianId)
+);
+
+
+-- ============================================
+
+-- TABLE 7: VISITS (Foreign Keys: patientId, clinicianId)
+
+-- Composite PK: (patientId, clinicianId, visitDate)
+
+-- Allows: Multiple visits per patient-clinician pair (on different dates)
+
+-- Prevents: Same patient visiting same clinician twice on same day
+
+-- ============================================
+
+CREATE TABLE Visits (
+	patientId NUMBER(8) NOT NULL,
+	clinicianId NUMBER(3) NOT NULL,
+	visitDate DATE NOT NULL,
+	visitSeverity NUMBER(1) NOT NULL,
+
+-- Composite Primary Key
+CONSTRAINT pk_visits PRIMARY KEY (patientId, clinicianId, visitDate),
+CONSTRAINT chk_visits_severity CHECK (visitSeverity BETWEEN 1 AND 3),
+CONSTRAINT fk_visits_patient FOREIGN KEY (patientId) REFERENCES Patient(patientId),
+CONSTRAINT fk_visits_clinician FOREIGN KEY (clinicianId) REFERENCES Clinician(clinicianId)
+);
+
+
+-- ============================================
+
+-- TABLE 8: PROSTHESIS (Foreign Keys: patientId, clinicianId, footId, kneeId, hipId)
+
+-- *** INCLUDES 1:1 RELATIONSHIP ENFORCEMENT WITH UNIQUE CONSTRAINT ***
+
+-- ============================================
+
+CREATE TABLE Prosthesis (
+	prxId NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	materialType VARCHAR2(16) NOT NULL,
+	patientId NUMBER(8) NOT NULL UNIQUE, -- UNIQUE enforces 1:1 relationship!
+	clinicianId NUMBER(3) NOT NULL,
+	footId NUMBER(3) NOT NULL,
+	kneeId NUMBER(3),
+	hipId NUMBER(2),
+	outcomeScore NUMBER(4,1) NOT NULL,
+	satisfactionRating NUMBER(2,1) NOT NULL,
+	fitDate DATE NOT NULL,
+	
+	-- Virtual Column for compositeScore (Modern Method)
+	compositeScore NUMBER(4,1) GENERATED ALWAYS AS ((outcomeScore + (satisfactionRating * 20)) / 2) VIRTUAL,
+
+CONSTRAINT chk_prosthesis_materialType CHECK (materialType IN ('Aluminum', 'Titanium', 'Stainless Steel')),
+CONSTRAINT chk_prosthesis_outcomeScore CHECK (outcomeScore BETWEEN 0 AND 100),
+CONSTRAINT chk_prosthesis_satisfactionRating CHECK (satisfactionRating BETWEEN 0 AND 5),
+CONSTRAINT chk_prosthesis_fitDate CHECK (fitDate > DATE '2022-01-01'),
+CONSTRAINT fk_prosthesis_patient FOREIGN KEY (patientId) REFERENCES Patient(patientId),
+CONSTRAINT fk_prosthesis_clinician FOREIGN KEY (clinicianId) REFERENCES Clinician(clinicianId),
+CONSTRAINT fk_prosthesis_foot FOREIGN KEY (footId) REFERENCES Foot(footId),
+CONSTRAINT fk_prosthesis_knee FOREIGN KEY (kneeId) REFERENCES Knee(kneeId),
+CONSTRAINT fk_prosthesis_hip FOREIGN KEY (hipId) REFERENCES Hip(hipId)
+);
+
+
+-- ================================
+-- POPULATING SURGEON TABLE
+-- ================================
+
+INSERT INTO Surgeon (surgeonId,npi,fName,lName,street,city,state,zip,phone)
+VALUES (2,'1913353035','Sandra','Cook','79007 Cedar Ct','Milford','VA','95181','8376026924');
+
+INSERT INTO Surgeon (surgeonId,npi,fName,lName,street,city,state,zip,phone)
+VALUES (3,'1335077679','Emily','Martin','28321 Redwood Ln','Salem','CO','59797','3556078785');
+
+INSERT INTO Surgeon (surgeonId,npi,fName,lName,street,city,state,zip,phone)
+VALUES (25,'1201981188','Barbara','Brooks','55618 Lexington St','Springfield','MI','27146','6278801832');
+
+INSERT INTO Surgeon (surgeonId,npi,fName,lName,street,city,state,zip,phone)
+VALUES (45,'2553395010','Joseph','Reed','28669 Fairview Circle','Hudson','WY','58351','4993241771');
+
+
+
+-- ================================
+-- POPULATING CLINICIAN TABLE
+-- ================================
+
+INSERT INTO Clinician (clinicianId,fName,lName,street,city,state,zip,phone)
+VALUES (1,'Mason','Kramer','11527 Zephyr Commons','Quail Hollow','CT','15000','2035551842');
+
+INSERT INTO Clinician (clinicianId,fName,lName,street,city,state,zip,phone)
+VALUES (2,'Anthony','Alston','73804 Orchid Crossing','Crystal Lake','HI','27702','8085556721');
+
+INSERT INTO Clinician (clinicianId,fName,lName,street,city,state,zip,phone)
+VALUES (3,'Penelope','Dorsey','43851 Osprey Loop','Juniper Hills','AL','67183','2055559013');
+
+INSERT INTO Clinician (clinicianId,fName,lName,street,city,state,zip,phone)
+VALUES (4,'Ruby','Matthews','78428 Whisper Run','Alpine','MA','68762','7815554376');
+
+INSERT INTO Clinician (clinicianId,fName,lName,street,city,state,zip,phone)
+VALUES (5,'Charlotte','Graham','12258 Knoll Pass','Harbor Point','AK','48247','9075552304');
+
+
+
+-- ================================
+-- POPULATING FOOT TABLE
+-- ================================
+
+INSERT INTO Foot (footId,footMfgr,footMake)
+VALUES (3,'Proteor','Agilix');
+
+INSERT INTO Foot (footId,footMfgr,footMake)
+VALUES (9,'Ossur','Proflex Pivot');
+
+INSERT INTO Foot (footId,footMfgr,footMake)
+VALUES (22,'Ottobock','Triton VS');
+
+INSERT INTO Foot (footId,footMfgr,footMake)
+VALUES (25,'Ottobock','Kintrol');
+
+INSERT INTO Foot (footId,footMfgr,footMake)
+VALUES (26,'Ottobock','Maverick Comfort AT');
+
+
+
+-- ================================
+-- POPULATING KNEE TABLE
+-- ================================
+
+INSERT INTO Knee (kneeId,kneeMfgr,kneeMake)
+VALUES (4,'Proteor','Plie');
+
+INSERT INTO Knee (kneeId,kneeMfgr,kneeMake)
+VALUES (9,'Ossur','Navii Knee');
+
+INSERT INTO Knee (kneeId,kneeMfgr,kneeMake)
+VALUES (14,'Ossur','Total Knee 2100');
+
+INSERT INTO Knee (kneeId,kneeMfgr,kneeMake)
+VALUES (17,'Ossur','OP4 Knee');
+
+
+
+-- ================================
+-- POPULATING HIP TABLE
+-- ================================
+
+INSERT INTO Hip (hipId,hipMfgr,hipMake)
+VALUES (1,'Ottobock','Modular Single Axis Hip');
+
+INSERT INTO Hip (hipId,hipMfgr,hipMake)
+VALUES (2,'Ottobock','Helix3D Hip');
+
+INSERT INTO Hip (hipId,hipMfgr,hipMake)
+VALUES (3,'Ottobock','Monocentric Hydraulic Hip');
+
+
+
+-- ================================
+-- POPULATING PATIENT TABLE
+-- ================================
+ 
+INSERT INTO Patient (patientId,dob,gender,street,city,state,zip,phone,surgeonId,clinicianId,ampLevel,ampDate,ampSide)
+VALUES (14903955, DATE '1993-04-26','M','3717 Vista Ter','Quail Hollow','CT','15000','9595552766',25,1,'TF',DATE '2019-06-27','R');
+ 
+INSERT INTO Patient (patientId,dob,gender,street,city,state,zip,phone,surgeonId,clinicianId,ampLevel,ampDate,ampSide)
+VALUES (11902061, DATE '1946-11-01','F','7678 Otter Ter','Crystal Lake','HI','27702','8085554292',3,2,'TF',DATE '1973-03-25','R');
+ 
+INSERT INTO Patient (patientId,dob,gender,street,city,state,zip,phone,surgeonId,clinicianId,ampLevel,ampDate,ampSide)
+VALUES (29726645, DATE '2005-08-12','M','2303 Shady Dr, Apt 842','Juniper Hills','AL','67183','2515555377',45,3,'HD',DATE '2024-03-01','L');
+ 
+INSERT INTO Patient (patientId,dob,gender,street,city,state,zip,phone,surgeonId,clinicianId,ampLevel,ampDate,ampSide)
+VALUES (46040113, DATE '1942-05-17','M','7423 East Rd','Alpine','MA','68762','5085551975',3,4,'TF',DATE '1976-07-23','L');
+ 
+INSERT INTO Patient (patientId,dob,gender,street,city,state,zip,phone,surgeonId,clinicianId,ampLevel,ampDate,ampSide)
+VALUES (33535836, DATE '1964-07-24','F','6852 Robin Dr','Harbor Point','AK','48247','9075552640',2,5,'TT',DATE '1994-05-23','L');
+
+
+
+-- ================================
+-- POPULATING VISITS TABLE
+-- ================================
+
+-- ==
+-- Patient 14903955
+-- ==
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (14903955, 1, DATE '2023-06-12', 3);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (14903955, 1, DATE '2025-09-21', 3);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (14903955, 1, DATE '2024-05-25', 3);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (14903955, 1, DATE '2025-07-11', 1);
+
+
+-- ==
+-- Patient 11902061
+-- ==
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (11902061, 2, DATE '2025-07-21', 1);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (11902061, 2, DATE '2025-03-18', 2);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (11902061, 2, DATE '2025-08-03', 1);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (11902061, 2, DATE '2025-09-23', 3);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (11902061, 2, DATE '2025-09-15', 3);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (11902061, 2, DATE '2025-03-03', 3);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (11902061, 2, DATE '2025-04-23', 1);
+
+
+-- ==
+-- Patient 29726645
+-- ==
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (29726645, 3, DATE '2025-07-17', 2);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (29726645, 3, DATE '2025-09-26', 3);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (29726645, 3, DATE '2024-11-04', 3);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (29726645, 3, DATE '2025-05-08', 2);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (29726645, 3, DATE '2024-10-07', 1);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (29726645, 3, DATE '2024-09-02', 1);
+
+
+-- ==
+-- Patient 46040113
+-- ==
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (46040113, 4, DATE '2025-10-01', 2);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (46040113, 4, DATE '2025-07-21', 1);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (46040113, 4, DATE '2025-06-04', 3);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (46040113, 4, DATE '2025-10-13', 1);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (46040113, 4, DATE '2025-07-31', 2);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (46040113, 4, DATE '2025-06-22', 2);
+
+
+-- ==
+-- Patient 33535836
+-- ==
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (33535836, 5, DATE '2025-03-13', 2);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (33535836, 5, DATE '2025-09-10', 1);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (33535836, 5, DATE '2025-04-19', 1);
+
+INSERT INTO Visits (patientId,clinicianId,visitDate,visitSeverity)
+VALUES (33535836, 5, DATE '2025-09-20', 2);
+
+
+
+-- ================================
+-- POPULATING PROSTHESIS TABLE
+-- ================================
+
+INSERT INTO Prosthesis (materialType,patientId,clinicianId,footId,kneeId,hipId,outcomeScore,satisfactionRating,fitDate)
+VALUES ('Aluminum',14903955,1,25,9,NULL,78.2,3.5,DATE '2023-04-11');
+
+INSERT INTO Prosthesis (materialType,patientId,clinicianId,footId,kneeId,hipId,outcomeScore,satisfactionRating,fitDate)
+VALUES ('Titanium',11902061,2,9,17,NULL,60,4.7,DATE '2025-02-25');
+
+INSERT INTO Prosthesis (materialType,patientId,clinicianId,footId,kneeId,hipId,outcomeScore,satisfactionRating,fitDate)
+VALUES ('Aluminum',29726645,3,3,4,3,72.7,3.8,DATE '2024-07-11');
+
+INSERT INTO Prosthesis (materialType,patientId,clinicianId,footId,kneeId,hipId,outcomeScore,satisfactionRating,fitDate)
+VALUES ('Stainless Steel',46040113,4,22,14,NULL,61,4.8,DATE '2025-05-29');
+
+INSERT INTO Prosthesis (materialType,patientId,clinicianId,footId,kneeId,hipId,outcomeScore,satisfactionRating,fitDate)
+VALUES ('Stainless Steel',33535836,5,26,NULL,NULL,71,2.9,DATE '2024-05-10');
+
+COMMIT;
+
+
+
+-- ================================
+-- QUERIES
+-- ================================
+
+
+--=======TABLE DISPLAYS========
+SET LINESIZE 300;
+SET PAGESIZE 50;
+SET NUMWIDTH 10;
+ 
+
+SELECT * FROM clinician;
+SELECT * FROM foot;
+SELECT * FROM knee;
+SELECT * FROM hip;
+SELECT * FROM prosthesis;
+SELECT * FROM patient;
+SELECT * FROM surgeon;
+SELECT * FROM visits;
+--=========================    
+
+
+
+
+--=======SM QUERY 1========
+SELECT
+     c.fname AS Clinician_First_Name, 
+     c.lname AS Clinician_Last_Name,
+     c.clinicianID AS Clinician_ID,
+     SUM(CASE WHEN p.gender = ‘Male’ THEN 1 ELSE 0 END) AS Num_Male_Patients,
+     SUM(CASE WHEN p.gender = ‘Female’ THEN 1 ELSE 0 END) AS Num_Female_Patients,
+     AVG(CASE WHEN p.gender = ‘Male’ THEN p.ampLevel) AS Avg_AmpLevel_Male,
+     AVG(CASE WHEN p.gender = ‘Female’ THEN p.ampLevel) AS Avg_AmpLevel_Male
+FROM clinician c
+JOIN patient p ON c.clinicianID = p.clinicianID
+GROUP BY Clinician_ID, Clinician_First_Name, Clinician_Last_Name;
+--=========================
+
+
+
+--=======SM QUERY 2========
+SELECT
+    c.fname AS Clinician_First_Name,
+    c.lname AS Clinician_Last_Name,
+    c.clinicianID AS Clinician_ID
+    COUNT(prx.materialType) AS Total_Materials_Used,
+    SUM(CASE WHEN prx.materialType = ’titanium’ THEN 1 ELSE 0 END) as Total_Count_Titanium,
+    SUM(CASE WHEN prx.materialType = ’aluminum’ THEN 1 ELSE 0 END) as Total_Count_Aluminum,
+    SUM(CASE WHEN prx.materialType = ’stainless steel’ THEN 1 ELSE 0 END) as Total_Count_StainlessSteel,
+    SUM(CASE WHEN p.amputationLevel = ‘TT’ THEN 1 ELSE 0 END) as Total_Transtibial,
+    SUM(CASE WHEN p.amputationLevel = ‘TF’ THEN 1 ELSE 0 END) as Total_Transfemoral,
+    SUM(CASE WHEN p.amputationLevel = ‘TT’ THEN 1 ELSE 0 END) as Total_HipDisarticulation
+FROM clinician c
+JOIN Prosthesis prx ON c.clinicianID = prx.clinicianID
+JOIN Patient p ON c.clinicianID = p.clinicianID
+GROUP BY Clinician_ID, Clinician_First_Name, Clinician_Last_Name;
+--=========================
+
+
+--=======SM QUERY 3========
+SELECT 
+    p.patientID AS PatientID,
+    p.state AS PatientState
+FROM Patient p
+JOIN Prosthesis prx ON p.patientID = prx.patientID
+JOIN Foot f ON prx.footID = f.footID
+WHERE footMfgr = ‘Ottobock’
+GROUP BY PatientID, PatientState;
+--=========================
+
+
+
+
+--=======VM QUERY 1========
+SELECT 
+    s.fname AS First_Name,
+    s.lname AS Last_Name
+FROM surgeon s
+JOIN patient p ON s.surgeonid = p.surgeonid
+WHERE p.dob > ADD_MONTHS(TRUNC(SYSDATE), -12 * 35);
+--=========================
+
+
+
+--=======VM QUERY 2========
+COLUMN amp_level  HEADING 'Amp_Level'  FORMAT A10
+COLUMN avg_score  HEADING 'Avg_Score'  FORMAT 9999990.00
+
+SELECT 
+    p.amplevel AS Amp_Level,
+    ROUND(AVG(prx.compositescore),2) AS Avg_Score
+FROM prosthesis prx
+JOIN patient p ON prx.patientid = p.patientid
+GROUP BY p.amplevel
+ORDER BY Avg_Score ASC;
+--=========================
+
+
+
+--=======VM QUERY 3========
+SELECT 
+    prx.materialtype AS Material,
+    COUNT(prx.materialtype) AS Mat_Count
+FROM prosthesis prx
+JOIN patient p ON prx.patientid = p.patientid
+WHERE p.amplevel = 'TF'
+GROUP BY prx.materialtype
+ORDER BY Mat_Count DESC;
+--=========================
+
+
+
+--=======VM QUERY 4========
+COLUMN Clinician_First HEADING 'CLINICIAN_FIRST'  FORMAT A15
+
+SELECT 
+    p.patientid AS Patient,
+    COUNT(v.visitdate) AS Visit_Count,
+    c.lname AS Clinician_Last,
+    c.fname AS Clinician_First
+FROM patient p
+JOIN visits v ON p.patientid = v.patientid
+JOIN clinician c ON p.clinicianid = c.clinicianid
+GROUP BY 
+    p.patientid, 
+    c.lname,
+    c.fname
+HAVING COUNT(v.visitdate) = (
+    SELECT MAX(COUNT(v.visitdate))
+    FROM visits vs
+    GROUP BY vs.patientid
+);
+--=========================    
+
+
+
+
+--=======PR QUERY 1========
+SELECT  
+    prx.materialType AS Material_Type, 
+    COUNT(DISTINCT v.visitDate) AS Number_of_Visits, 
+    COUNT(DISTINCT pat.patientId) AS Number_of_Patients, 
+    ROUND(AVG(prx.satisfactionRating), 2) AS Avg_Satisfaction, 
+    ROUND(AVG(prx.outcomeScore), 2) AS Avg_Outcome_Score 
+FROM Prosthesis prx 
+JOIN Patient pat ON prx.patientId = pat.patientId 
+JOIN Visits v ON pat.patientId = v.patientId 
+WHERE pat.patientId IN ( 
+    SELECT patientId 
+    FROM Visits 
+    GROUP BY patientId 
+    HAVING COUNT(visitDate) >= 4 
+) 
+GROUP BY prx.materialType 
+ORDER BY Avg_Satisfaction DESC, Avg_Outcome_Score DESC; 
+--=========================    
+
+
+
+--=======PR QUERY 2========
+SELECT  
+    CASE pat.ampLevel   
+        WHEN 'TT' THEN 'Transtibial'   
+        WHEN 'TF' THEN 'Transfemoral'   
+        WHEN 'HD' THEN 'Hip Disarticulation'   
+    END AS Amputation_Level, 
+    COUNT(pat.patientId) AS Number_of_Patients, 
+    ROUND(AVG(TRUNC(MONTHS_BETWEEN(SYSDATE, pat.dob) / 12)), 1) AS Avg_Current_Age, 
+    ROUND(AVG(TRUNC(MONTHS_BETWEEN(pat.ampDate, pat.dob) / 12)), 1) AS Avg_Age_At_Amputation, 
+    ROUND(AVG(pros.compositeScore), 2) AS Avg_Composite_Score 
+FROM Patient pat 
+JOIN Prosthesis pros ON pat.patientId = pros.patientId 
+GROUP BY pat.ampLevel 
+ORDER BY Avg_Composite_Score DESC; 
+--=========================    
+
+
+
+--=======PR QUERY 3========
+SELECT  
+    pat.patientId AS Patient_ID, 
+    pat.gender AS Gender, 
+    TRUNC(MONTHS_BETWEEN(SYSDATE, pat.dob) / 12) AS Age, 
+    ROUND(AVG(v.visitSeverity), 2) AS Avg_Visit_Severity, 
+    COUNT(v.visitDate) AS Total_Visits 
+FROM Patient pat 
+JOIN Visits v ON pat.patientId = v.patientId 
+GROUP BY pat.patientId, pat.gender, pat.dob 
+HAVING AVG(v.visitSeverity) > ( 
+    SELECT AVG(visitSeverity)  
+    FROM Visits 
+) 
+ORDER BY Avg_Visit_Severity DESC; 
+--=========================    
+
+
+
+
+
+
+
+
+-- ================================
+-- DML STATEMENTS
+-- ================================
+
+SET AUTOCOMMIT OFF;
+
+
+--=======SM DML 1: UPDATE========
+SELECT
+    patientid,
+    street,
+    city, 
+    state 
+FROM patient 
+WHERE patientID = 11902061; 
+
+UPDATE patient 
+SET street = '1500 Spruce ST', city = 'Philadelphia', state = 'PA' 
+WHERE patientID = 11902061; 
+
+SELECT 
+    patientid, 
+    street, 
+    city, 
+    state
+FROM patient 
+WHERE patientID = 11902061; 
+
+ROLLBACK; 
+--=========================  
+
+
+--=======SM DML 2: DELETE========
+SELECT patientId,State from Patient WHERE state = 'AK'; 
+SELECT p.patientID,prx.fitDate from Prosthesis prx JOIN Patient p ON prx.patientId = p.patientId WHERE p.state = 'AK'; 
+SELECT p.patientID, v.visitDate from Visits v JOIN Patient p ON v.patientId = p.patientId WHERE p.state = 'AK'; 
+
+DELETE FROM Visits 
+WHERE patientId IN ( 
+    SELECT patientId FROM Patient WHERE state = 'AK'); 
+    
+DELETE FROM Prosthesis 
+WHERE patientId IN ( 
+    SELECT patientId FROM Patient WHERE state = 'AK'); 
+
+DELETE FROM Patient 
+WHERE state = 'AK'; 
+
+SELECT patientId,State from Patient WHERE state = 'AK'; 
+SELECT p.patientID,prx.fitDate from Prosthesis prx JOIN Patient p ON prx.patientId = p.patientId WHERE p.state = 'AK'; 
+SELECT p.patientID, v.visitDate from Visits v JOIN Patient p ON v.patientId = p.patientId WHERE p.state = 'AK'; 
+
+ROLLBACK;
+--=========================  
+
+
+
+
+--=======VM DML 1: UPDATE========
+SELECT 
+    patientid,
+    dob,
+    phone
+FROM patient;
+
+UPDATE patient
+SET phone = '9592001234'
+WHERE patientid = 14903955;
+
+SELECT 
+    patientid,
+    dob,
+    phone
+FROM patient;
+
+ROLLBACK;
+--=========================  
+
+
+--=======VM DML 2: DELETE========
+SELECT 
+    patientid,
+    dob,
+    phone
+FROM patient;
+
+DELETE FROM prosthesis
+WHERE patientid = 14903955;
+
+DELETE FROM visits
+WHERE patientid = 14903955;
+
+DELETE FROM patient
+WHERE patientid = 14903955;
+
+SELECT 
+    patientid,
+    dob,
+    phone
+FROM patient;
+
+ROLLBACK;
+--========================= 
+
+
+
+
+--=======PR DML 1: UPDATE========
+SELECT  
+    patientid, 
+    clinicianid, 
+    phone 
+FROM patient 
+WHERE patientid = 33535836; 
+
+UPDATE patient 
+SET clinicianid = 2 
+WHERE patientid = 33535836; 
+
+
+SELECT  
+    patientid, 
+    clinicianid, 
+    phone 
+FROM patient 
+WHERE patientid = 33535836; 
+
+ROLLBACK; 
+--=========================  
+
+
+--=======PR DML 2: DELETE========
+SELECT * FROM Hip 
+WHERE hipId = 1; 
+
+DELETE FROM Hip 
+WHERE hipId = 1; 
+
+SELECT * FROM Hip 
+WHERE hipId = 1; 
+
+ROLLBACK; 
+--=========================  
+
