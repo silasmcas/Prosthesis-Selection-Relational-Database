@@ -104,4 +104,4 @@ This database is designed as the architectural foundation for a **knowledge-base
 
 - **Course:** INFO 605 – Database Management  
 - **Term:** Fall 2025  
-- **Institution:** [Your University Name]
+- **Institution:** Drexel University
